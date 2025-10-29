@@ -1,0 +1,16 @@
+{
+    "files.associations": {
+        "*.pl": "prolog",
+        "string.h": "c",
+        "stdio.h": "c",
+        "netdb.h": "c",
+        "types.h": "c",
+        "socket.h": "c",
+        "stdlib.h": "c",
+        "unistd.h": "c",
+        "errno.h": "c",
+        "in.h": "c",
+        "ctype.h": "c",
+        "time.h": "c"
+    }
+}
