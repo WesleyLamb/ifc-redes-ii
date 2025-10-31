@@ -8,6 +8,7 @@
                 "-fdiagnostics-color=always",
                 "-g",
                 "${file}",
+                "${fileDirname}/src/helpers.c",
                 "-o",
                 "${fileDirname}/${fileBasenameNoExtension}"
             ],

@@ -9,15 +9,7 @@
 #include <errno.h>
 #include <time.h>
 #include <ctype.h>
-
-void copy(char* dest, char* src, int len) {
-    for (int i = 0; i < len; i++) {
-        if (src[i] == '\0') {
-            break;
-        }
-        dest[i] = src[i];
-    }
-}
+#include "src/helpers.h"
 
 int main() {
     srand(time(NULL));
@@ -26,7 +18,8 @@ int main() {
     struct sockaddr_in serverAddress, clientAddress;
     char buffer[BUFSIZ], responseBuffer[BUFSIZ], *helper, *helper2;
     int recvSequence = 0, currSequence = 0;
-    clock_t recvSequenceTime = 0, currSequenceTime = 0, difference;
+    time_t currTime;
+    struct tm *t;
     struct timeval tv;
     tv.tv_sec = 1;
     tv.tv_usec = 0;
@@ -57,27 +50,20 @@ int main() {
 
         clientAddressLen = sizeof(clientAddress);
         status = recvfrom(serverSocket, buffer, BUFSIZ, 0, (struct sockaddr *) &clientAddress, &clientAddressLen);
-        currSequenceTime = clock();
+        currTime = time(NULL);
+        t = localtime(&currTime);
         if (firstPacket) {
             setsockopt(serverSocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
             firstPacket = 0;
         }
 
         if (status < 0) {
-            printf("No heartbeat at %ld.\n", currSequenceTime);
+            memset(helper, 0, 32);
+            datetimetostr(t, helper);
+            printf("No heartbeat at %s.\n", helper);
             continue;
         }
         printf("Online: %s\n", buffer);
-        helper2 = strchr(buffer, ' ');
-
-        memset(helper, 0, 10);
-        copy(helper, (char*)&buffer, (int)(helper2 - buffer));
-        currSequence = atoi(helper);
-
-        memset(helper, 0, 10);
-        copy(helper, (char*)  helper2, 30);
-        recvSequenceTime = atol(helper);
-        difference = recvSequenceTime - currSequenceTime;
     }
 
     return 0;

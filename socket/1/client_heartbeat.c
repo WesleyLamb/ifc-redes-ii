@@ -7,64 +7,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
+#include "src/helpers.h"
 
 #define ITERATIONS 10
-
-/* reverse:  reverse string s in place */
-void reverse(char s[])
-{
-    int i, j;
-    char c;
-
-    for (i = 0, j = strlen(s)-1; i<j; i++, j--) {
-        c = s[i];
-        s[i] = s[j];
-        s[j] = c;
-    }
-}
-
-/* itoa:  convert n to characters in s */
-void itoa(int n, char s[])
-{
-    int i, sign;
-
-    if ((sign = n) < 0)  /* record sign */
-        n = -n;          /* make n positive */
-    i = 0;
-    do {       /* generate digits in reverse order */
-        s[i++] = n % 10 + '0';   /* get next digit */
-    } while ((n /= 10) > 0);     /* delete it */
-    if (sign < 0)
-        s[i++] = '-';
-    s[i] = '\0';
-    reverse(s);
-}
-
-/* ltoa:  convert n to characters in s */
-void ltoa(long n, char s[])
-{
-    long i, sign;
-
-    if ((sign = n) < 0)  /* record sign */
-        n = -n;          /* make n positive */
-    i = 0;
-    do {       /* generate digits in reverse order */
-        s[i++] = n % 10 + '0';   /* get next digit */
-    } while ((n /= 10) > 0);     /* delete it */
-    if (sign < 0)
-        s[i++] = '-';
-    s[i] = '\0';
-    reverse(s);
-}
-
-void copy(char* dest, char* src, int len) {
-    for (int i = 0; i < len; i++) {
-        if (src[i] == '\0') {
-            break;
-        }
-        dest[i] = src[i];
-    }
-}
 
 int main(int argc, char *argv[])
 {
@@ -116,8 +61,9 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        clock_t sendTime = clock();
-        clock_t recvTime = 0;
+        time_t sendTime = time(NULL);
+        struct tm *t = localtime(&sendTime);
+
         // Envia os dados ao destinatário
         memset(helper, 0, 32);
         itoa(i, helper);
@@ -127,8 +73,9 @@ int main(int argc, char *argv[])
         buffer[lastPosOfBuffer] = ' ';
         lastPosOfBuffer++;
         memset(helper, 0, 32);
-        ltoa(sendTime, helper);
-        copy(&buffer[lastPosOfBuffer], helper, sizeof(long));
+        datetimetostr(t, helper);
+
+        copy(&buffer[lastPosOfBuffer], helper, strlen(helper));
 
         printf("Enviando %s\n", buffer);
         status = sendto(clientSocket, &buffer, 32, 0, (struct sockaddr *) &serverAddress, sizeof(serverAddress));
@@ -137,35 +84,7 @@ int main(int argc, char *argv[])
             return 1;
         }
         i++;
-        usleep(250000);        // // Recebe do destinatário (com timeout de 1s)
-        // status = recvfrom(clientSocket, &buffer, BUFSIZ, 0, (struct sockaddr *) &serverAddress, &serverAddressLen);
-        // // Se status < 0, é erro
-        // if (status < 0) {
-        //     printf("Ping %d %s (%d)\n", i + 1, "Request timed out", errno);
-        //     losses++;
-        // } else {
-        //     recvTime = clock();
-        //     timeElapsed[i] = (recvTime - sendTime);
-        //     if (timeElapsed[i] < min) {
-        //         min = timeElapsed[i];
-        //     }
-
-        //     if (timeElapsed[i] > max) {
-        //         max = timeElapsed[i];
-        //     }
-
-        //     avg += timeElapsed[i];
-
-        //     printf("Ping %d %dµs\n", i + 1, timeElapsed[i]);
-        //     sleep(1);
-        // }
-        // Encerra o socket
+        usleep(250000);
         close(clientSocket);
     }
-    // double lossesPerc = ((double)losses / (double)ITERATIONS) * 100;
-    // printf("Total: \n");
-    // printf("Packages sent %d\n", ITERATIONS - losses);
-    // printf("Packages lost: %d (%.2f%%)\n", losses, lossesPerc);
-    // printf("Avg: %.2fµs, Min: %dµs, Max: %dµs\n", (double) avg / (double) ITERATIONS, min, max);
-
 }
