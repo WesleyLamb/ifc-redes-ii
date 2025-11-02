@@ -8,7 +8,11 @@
                 "-fdiagnostics-color=always",
                 "-g",
                 "${file}",
-                "${fileDirname}/src/helpers.c",
+                // "${fileDirname}/src/helpers.c",
+                "${fileDirname}/smtp.c",
+                "-DSMTP_OPENSSL",
+                "-lssl",
+                "-lcrypto",
                 "-o",
                 "${fileDirname}/${fileBasenameNoExtension}"
             ],

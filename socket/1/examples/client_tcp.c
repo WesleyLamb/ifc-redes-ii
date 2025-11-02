@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     char buffer [BUFSIZ];
 
     hints.ai_family = AF_INET; //IPv4
-    hints.ai_socktype = SOCK_DGRAM; // TCP
+    hints.ai_socktype = SOCK_STREAM; // TCP
     hints.ai_flags = 0;
     hints.ai_protocol = 0; // Qualquer protocolo
 
@@ -50,8 +50,8 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    write(clientSocket, "ping\0", sizeof(char) * 5);
-    read(clientSocket, &buffer, BUFSIZ);
+    send(clientSocket, "ping\0", sizeof(char) * 5);
+    recv(clientSocket, &buffer, BUFSIZ);
     printf("%s\n", buffer);
 
     close(clientSocket);

@@ -11,6 +11,16 @@
         "errno.h": "c",
         "in.h": "c",
         "ctype.h": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "const.h": "c",
+        "helpers.h": "c",
+        "cstdlib": "c",
+        "smtp.h": "c",
+        "bio.h": "c",
+        "x509v3.h": "c",
+        "evp.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c"
     }
 }
