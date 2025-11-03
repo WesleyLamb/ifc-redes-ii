@@ -1,0 +1,29 @@
+[smtp Server]: 220 ESMTP smtp.hostinger.com
+[smtp Client]: EHLO smtp
+[smtp Server]: 250-smtp.hostinger.com
+[smtp Server]: 250-PIPELINING
+[smtp Server]: 250-SIZE 48811212
+[smtp Server]: 250-ETRN
+[smtp Server]: 250-AUTH PLAIN LOGIN
+[smtp Server]: 250-ENHANCEDSTATUSCODES
+[smtp Server]: 250-8BITMIME
+[smtp Server]: 250-DSN
+[smtp Server]: 250 CHUNKING
+[smtp Client]: AUTH PLAIN AHdlc2xleS5sYW1iQGNhc3RvcnNvZnQuY29tLmJyACNXTFQqXlIyZnlvIW40
+[smtp Server]: 235 2.7.0 Authentication successful
+[smtp Client]: MAIL FROM:<wesley.lamb@castorsoft.com.br>
+[smtp Server]: 250 2.1.0 Ok
+[smtp Client]: RCPT TO:<wesley.lamb@castorsoft.com.br>
+[smtp Server]: 250 2.1.5 Ok
+[smtp Client]: DATA
+[smtp Server]: 354 End data with <CR><LF>.<CR><LF>
+[smtp Client]: Date: Mon, 03 Nov 2025 09:39:41 -0300
+[smtp Client]: From: "Wesley R. Lamb" <wesley.lamb@castorsoft.com.br>
+[smtp Client]: Subject: Subject Line
+[smtp Client]: To: "Wesley R. Lamb" <wesley.lamb@castorsoft.com.br>
+[smtp Client]: MIME-Version: 1.0  Content-Type: multipart/mixed; boundary=mimeVHMDGDBIQE    Multipart MIME message.  --mimeVHMDGDBIQE  Content-Type: text/plain; charset="UTF-8"    Email Body
+[smtp Client]: --mimeVHMDGDBIQE  Content-Type: application/octet-stream  Content-Disposition: attachment; filename="test.txt"  Content-Transfer-Encoding: base64    VGVzdCBlbWFpbCBhdHRhY2htZW50Lg==
+[smtp Client]: --mimeVHMDGDBIQE--
+[smtp Client]: .
+[smtp Server]: 250 2.0.0 Ok: queued as 4d0WPS6Xb4z135K
+[smtp Client]: QUIT

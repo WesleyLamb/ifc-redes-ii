@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <openssl/bio.h>
 #include <openssl/evp.h>
+#include <openssl/ssl.h>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
 
 static char encoding_table[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
                                 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
@@ -46,16 +49,7 @@ int receber(int socket, char* resposta) {
         return status;
     }
     fprintf(stdout, "Resposta: %s\n", resposta);
-}
-
-void base64_encode(char *dest, char* src, int srclen)
-{
-    int destlen;
-    EVP_ENCODE_CTX *ectx = EVP_ENCODE_CTX_new();
-    EVP_EncodeInit(ectx);
-    EVP_EncodeBlock( dest, src, srclen);
-    EVP_EncodeFinal(ectx, dest, &destlen);
-    EVP_ENCODE_CTX_free(ectx);
+    return status;
 }
 
 int enviar(int socket, char *requisicao)
@@ -72,6 +66,43 @@ int enviar(int socket, char *requisicao)
     return status;
 }
 
+int receberTLS(SSL *socket, char* resposta) {
+
+    char* buffer;
+    buffer = malloc(BUFSIZ * sizeof(char));
+    char *concat = resposta;
+
+    int status = 0;
+    memset(buffer, 0, BUFSIZ);
+
+    // do {
+    status = SSL_read(socket, buffer, BUFSIZ);
+    printf("Ultimo caractere: %d\n", (int) buffer[strlen(buffer)]);
+    stpcpy(concat, buffer);
+    // } while (status <= 0 && BIO_should_retry(socket));
+
+    if (status < 0) {
+        fprintf(stderr, "Erro ao receber os dados: %d\n", status);
+        return status;
+    }
+    fprintf(stdout, "Resposta: %s\n", resposta);
+    return status;
+}
+
+int enviarTLS(SSL *socket, char *requisicao)
+{
+    int status = 0;
+
+    status = SSL_write(socket, requisicao, strlen(requisicao));
+    fprintf(stdout, "Envio: %s\n", requisicao);
+    if (status < 0) {
+        fprintf(stderr, "Erro ao enviar os dados: %d\n", status);
+        return status;
+    }
+
+    return status;
+}
+
 void copy(char *dest, char *src, int len)
 {
     for (int i = 0; i < len; i++)
@@ -82,4 +113,14 @@ void copy(char *dest, char *src, int len)
         }
         dest[i] = src[i];
     }
+}
+
+void base64_encode(char *dest, char* src, int srclen)
+{
+    int destlen;
+    EVP_ENCODE_CTX *ectx = EVP_ENCODE_CTX_new();
+    EVP_EncodeInit(ectx);
+    EVP_EncodeBlock( dest, src, srclen);
+    EVP_EncodeFinal(ectx, dest, &destlen);
+    EVP_ENCODE_CTX_free(ectx);
 }
