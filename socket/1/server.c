@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <time.h>
 #include <ctype.h>
+#include <arpa/inet.h>
 
 int main() {
     srand(time(NULL));
@@ -46,7 +47,7 @@ int main() {
             printf("Nao foi possivel receber os dados do cliente (%d).\n", errno);
             continue;
         }
-        printf("Nova mensagem: %s\n", buffer);
+        printf("Nova mensagem: %s - cliente %s porta %d\n", buffer, inet_ntoa(clientAddress.sin_addr), clientAddress.sin_port);
 
         randomNumber = rand() % 11;
         if (randomNumber < 4) {

@@ -31,17 +31,17 @@ int criarSocketTCP()
 int receber(int socket, char* resposta) {
 
     char* buffer;
-    buffer = malloc(BUFSIZ * sizeof(char));
+    buffer = malloc(PACKET_SIZE * sizeof(char));
     char *concat = resposta;
 
     int status = 0;
-    memset(buffer, 0, BUFSIZ);
-    while (status = recv(socket, buffer, BUFSIZ, 0) > 0) {
+    memset(buffer, 0, PACKET_SIZE);
+    while (status = recv(socket, buffer, PACKET_SIZE, 0) > 0) {
         concat = stpcpy(concat, buffer);
         if (buffer[strlen(buffer) == '\0']) {
             break;
         }
-        memset(buffer, 0, BUFSIZ);
+        memset(buffer, 0, PACKET_SIZE);
         printf("Ultimo caractere: %d\n", (int) buffer[strlen(buffer)]);
     };
     if (status < 0) {
@@ -50,6 +50,21 @@ int receber(int socket, char* resposta) {
     }
     fprintf(stdout, "Resposta: %s\n", resposta);
     return status;
+}
+
+int adicionarCorpo(int socket, char* corpo) {
+    int status = 0;
+
+    char mensagem[PACKET_SIZE], *concat;
+    memset((char*)mensagem, 0, PACKET_SIZE);
+
+    concat = stpcpy((char*)mensagem, "Content-Type: multipart/mixed; boundary=\"X-=-=-=-text boundary\"\n");
+    concat = stpcpy(concat, "Content-Type: text/plain\n");
+    concat = stpcpy(concat, corpo);
+    concat = stpcpy(concat, "--X-=-=-=-text boundary\n");
+
+
+    return enviar(socket, mensagem);
 }
 
 int enviar(int socket, char *requisicao)
@@ -69,14 +84,14 @@ int enviar(int socket, char *requisicao)
 int receberTLS(SSL *socket, char* resposta) {
 
     char* buffer;
-    buffer = malloc(BUFSIZ * sizeof(char));
+    buffer = malloc(PACKET_SIZE * sizeof(char));
     char *concat = resposta;
 
     int status = 0;
-    memset(buffer, 0, BUFSIZ);
+    memset(buffer, 0, PACKET_SIZE);
 
     // do {
-    status = SSL_read(socket, buffer, BUFSIZ);
+    status = SSL_read(socket, buffer, PACKET_SIZE);
     printf("Ultimo caractere: %d\n", (int) buffer[strlen(buffer)]);
     stpcpy(concat, buffer);
     // } while (status <= 0 && BIO_should_retry(socket));

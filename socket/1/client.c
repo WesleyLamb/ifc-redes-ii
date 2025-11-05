@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     tv.tv_usec = 0;
     char buffer[BUFSIZ];
 
-    // Retorna o IP do host especificado
+    // Solicita ao SO o IP do host especificado
     host = gethostbyname("localhost");
     if (host == NULL) {
         printf("Nao foi possivel estabelecer a conexao com o servidor, certifique-se de que o mesmo esteja rodando (%d). \n", errno);
@@ -46,6 +46,9 @@ int main(int argc, char *argv[])
         // Configura o timeout no socket
         setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
 
+        // AF_INET = IP 4 ou 6
+        // INADDR_ANY = Aceita requisição de qualquer origem (localhost, rede)
+        // SIN_PORT 0 = porta a ser utilizada para a requisição será definida pelo SO
         clientAddress.sin_family = AF_INET;
         clientAddress.sin_addr.s_addr = INADDR_ANY;
         clientAddress.sin_port = 0;
@@ -73,6 +76,7 @@ int main(int argc, char *argv[])
             printf("Ping %d %s (%d)\n", i + 1, "Request timed out", errno);
             losses++;
         } else {
+            printf("%s\n",buffer);
             recvTime = clock();
             timeElapsed[i] = (recvTime - sendTime);
             if (timeElapsed[i] < min) {

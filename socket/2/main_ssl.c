@@ -35,9 +35,9 @@ int main() {
     SSL *tlsSocket;
     BIO *tls_bio;
 
-    requestBuffer = malloc(BUFSIZ * sizeof(char));
-    responseBuffer = malloc(BUFSIZ * sizeof(char));
-    b64 = malloc(BUFSIZ * sizeof(char));
+    requestBuffer = malloc(PACKET_SIZE * sizeof(char));
+    responseBuffer = malloc(PACKET_SIZE * sizeof(char));
+    b64 = malloc(PACKET_SIZE * sizeof(char));
 
     hints.ai_family = AF_INET; //IPv4
     hints.ai_socktype = SOCK_STREAM; // TCP
@@ -139,14 +139,14 @@ int main() {
     // Recebe a resposta do servidor (220)
     status = receberTLS(tlsSocket, (char*)responseBuffer);
 
-    memset(requestBuffer, 0, BUFSIZ);
+    memset(requestBuffer, 0, PACKET_SIZE);
     strcpy(requestBuffer, "EHLO smtp\n");
     status = enviarTLS(tlsSocket, (char*) requestBuffer);
 
-    memset(responseBuffer, 0, BUFSIZ);
+    memset(responseBuffer, 0, PACKET_SIZE);
     status = receberTLS(tlsSocket, (char*)responseBuffer);
 
-    memset(requestBuffer, 0, BUFSIZ);
+    memset(requestBuffer, 0, PACKET_SIZE);
     char *usernameAndPassword;
     usernameAndPassword = malloc(128 * sizeof(char));
 
@@ -165,68 +165,68 @@ int main() {
 
     enviarTLS(tlsSocket, requestBuffer);
 
-    memset(responseBuffer, 0, BUFSIZ);
+    memset(responseBuffer, 0, PACKET_SIZE);
     receberTLS(tlsSocket, responseBuffer);
 
-    memset(requestBuffer, 0, BUFSIZ);
+    memset(requestBuffer, 0, PACKET_SIZE);
     sprintf(requestBuffer, "MAIL FROM:<%s>\n", MAIL_FROM);
     enviarTLS(tlsSocket, requestBuffer);
 
-    memset(responseBuffer, 0, BUFSIZ);
+    memset(responseBuffer, 0, PACKET_SIZE);
     receberTLS(tlsSocket, responseBuffer);
 
-    memset(requestBuffer, 0, BUFSIZ);
+    memset(requestBuffer, 0, PACKET_SIZE);
     sprintf(requestBuffer, "RCPT TO:<%s>\n", MAIL_FROM);
     enviarTLS(tlsSocket, requestBuffer);
 
-    memset(responseBuffer, 0, BUFSIZ);
+    memset(responseBuffer, 0, PACKET_SIZE);
     receberTLS(tlsSocket, responseBuffer);
 
-    memset(requestBuffer, 0, BUFSIZ);
+    memset(requestBuffer, 0, PACKET_SIZE);
     sprintf(requestBuffer, "DATA\n");
     enviarTLS(tlsSocket, requestBuffer);
 
-    memset(responseBuffer, 0, BUFSIZ);
+    memset(responseBuffer, 0, PACKET_SIZE);
     receberTLS(tlsSocket, responseBuffer);
 
-    memset(requestBuffer, 0, BUFSIZ);
+    memset(requestBuffer, 0, PACKET_SIZE);
 
     concat = stpcpy(requestBuffer, "Date: ");
     time_t *data;
     *data = time(NULL);
-    strftime(concat, BUFSIZ - strlen(requestBuffer), "%a, %d %b %Y %T %z\n", localtime(data));
+    strftime(concat, PACKET_SIZE - strlen(requestBuffer), "%a, %d %b %Y %T %z\n", localtime(data));
 
     enviarTLS(tlsSocket, requestBuffer);
 
-    memset(requestBuffer, 0, BUFSIZ);
+    memset(requestBuffer, 0, PACKET_SIZE);
     sprintf(requestBuffer, "From: \"%s\" <%s>\n", MAIL_FROM_NAME, MAIL_FROM);
 
     enviarTLS(tlsSocket, requestBuffer);
 
-    memset(requestBuffer, 0, BUFSIZ);
+    memset(requestBuffer, 0, PACKET_SIZE);
 
     sprintf(requestBuffer, "Subject: %s\n", "Teste de envio em C");
 
     enviarTLS(tlsSocket, requestBuffer);
 
-    memset(requestBuffer, 0, BUFSIZ);
+    memset(requestBuffer, 0, PACKET_SIZE);
     sprintf(requestBuffer, "To: \"%s\" <%s>\n", MAIL_FROM_NAME, MAIL_FROM);
 
     enviarTLS(tlsSocket, requestBuffer);
 
-    memset(requestBuffer, 0, BUFSIZ);
-    sprintf(requestBuffer, "Fucking hate niggers\n");
+    memset(requestBuffer, 0, PACKET_SIZE);
+    sprintf(requestBuffer, "Teste corpo de emeio\n");
     enviarTLS(tlsSocket, requestBuffer);
 
-    memset(requestBuffer, 0, BUFSIZ);
+    memset(requestBuffer, 0, PACKET_SIZE);
     sprintf(requestBuffer, "\r\n.\r\n");
 
     enviarTLS(tlsSocket, requestBuffer);
 
-    memset(responseBuffer, 0, BUFSIZ);
+    memset(responseBuffer, 0, PACKET_SIZE);
     receberTLS(tlsSocket, responseBuffer);
 
-    memset(requestBuffer, 0, BUFSIZ);
+    memset(requestBuffer, 0, PACKET_SIZE);
     sprintf(requestBuffer, "QUIT\n");
 
     enviarTLS(tlsSocket, requestBuffer);
