@@ -60,15 +60,16 @@ const char * to_hex_string(const void * object, int size)
 // lookup the dns-name of associated with an ipaddress
 bool reverse_dns_lookup(const char * ipaddress, char * name_out, int size)
 {
+    int status = 0;
     struct sockaddr_in addr;
     zero_inititialize(&addr, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr(ipaddress);
 
     char buffer[NI_MAXHOST];
-    if (getnameinfo((struct sockaddr *)&addr, sizeof(struct sockaddr_in), buffer, sizeof(buffer), NULL, 0, NI_NAMEREQD))
+    if (status = getnameinfo((struct sockaddr *)&addr, sizeof(struct sockaddr_in), buffer, sizeof(buffer), NULL, 0, NI_NAMEREQD))
     {
-        printf("Could not resolve reverse lookup of hostname\n");
+        printf("Não foi possível recuperar o DNS Reverso do HOST informado: %s\n", (gai_strerror(status)));
         return false;
     }
 
@@ -175,18 +176,22 @@ bool verify_reply(const struct ping_pkt * sent, const struct ping_pkt * received
 {
     if (received->hdr.type != ICMP_ECHOREPLY)
     {
+        printf("1\n");
         return false;
     }
     if (received->hdr.code != 0)
     {
+        printf("2\n");
         return false;
     }
     if (received->hdr.un.echo.id != expected_id)
     {
+        printf("3\n");
         return false;
     }
     if (memcmp(&sent->payload[0], &received->payload[0], ICMP_PAYLOAD_LENGTH) != 0)
     {
+        printf("4\n");
         return false;
     }
     return true;
@@ -284,7 +289,7 @@ int main(int argc, char * argv[])
 {
     if (argc < 2)
     {
-        printf("usage: ping_test <host>\n\n");
+        printf("usage: %s <host>\n", argv[0]);
         return -1;
     }
 
@@ -293,8 +298,10 @@ int main(int argc, char * argv[])
 
     char name[1024];
     zero_inititialize(&name[0], sizeof(name));
-    reverse_dns_lookup(address, name, sizeof(name));
-    printf("PING %s. (%s)\n", address, name);
+    if (!reverse_dns_lookup(address, name, sizeof(name))) {
+        return -1;
+    }
+    printf("Disparando PING para %s. (%s)\n", address, name);
 
     int status_code = 0;
     const int timeout_ms = 1000;
@@ -311,6 +318,7 @@ int main(int argc, char * argv[])
         if (result > 0)
         {
             printf("ping from %s: time=%.2fms.\n", address, duration);
+            sleep(1);
         }
     }
     return status_code;
