@@ -18,6 +18,17 @@
 #include <unistd.h>
 #include <errno.h>
 
+#define min(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
+
+#define max(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
+
+
 // you can choose to send more or less dummy payload data
 #define ICMP_PAYLOAD_LENGTH (26 /*- sizeof(struct icmphdr)*/)
 struct ping_pkt
@@ -29,19 +40,19 @@ struct ping_pkt
 // the reason for this method is that bzero() is not standard C11 and I really
 // do not like the fact that messing up the order of arguments to 'memset' to zero out memory
 // can cause serious bugs. I would like memset_explicit even more, but C23 isn't available to me at this like
-void zero_inititialize(void * data, int size)
+void zero_inititialize(void *data, int size)
 {
     memset(data, 0, size);
 }
 
 // this will convert any binary data into a readable ascii form
 // unprintable ascii characters are coverted to dots
-const char * to_hex_string(const void * object, int size)
+const char *to_hex_string(const void *object, int size)
 {
 
-    const char * data = (const char *)object;
+    const char *data = (const char *)object;
     static char buffer[1024];
-    char * write_pointer = &buffer[0];
+    char *write_pointer = &buffer[0];
     // for (int i = 0; i < size; ++i)
     // {
     //     int bytes_written = sprintf(write_pointer, "%02X ", (uint8_t)data[i]);
@@ -68,7 +79,7 @@ const char * to_hex_string(const void * object, int size)
 }
 
 // lookup the dns-name of associated with an ipaddress
-bool reverse_dns_lookup(const char * ipaddress, char * name_out, int size)
+bool reverse_dns_lookup(const char *ipaddress, char *name_out, int size)
 {
     int status = 0;
     struct sockaddr_in addr;
@@ -87,9 +98,9 @@ bool reverse_dns_lookup(const char * ipaddress, char * name_out, int size)
     return true;
 }
 
-unsigned short calculate_checksum(const struct ping_pkt * packet)
+unsigned short calculate_checksum(const struct ping_pkt *packet)
 {
-    const unsigned short * view = (const unsigned short *)packet;
+    const unsigned short *view = (const unsigned short *)packet;
     size_t size = sizeof(struct ping_pkt);
 
     unsigned int sum = 0;
@@ -106,19 +117,19 @@ unsigned short calculate_checksum(const struct ping_pkt * packet)
     return ~sum;
 }
 
-const char * dns_lookup_and_store_address(const char * address, struct sockaddr_in * sock_addr)
+const char *dns_lookup_and_store_address(const char *address, struct sockaddr_in *sock_addr)
 {
     static char buffer[1024];
 
     zero_inititialize(&buffer, sizeof(buffer));
     const uint16_t port = 0;
-    struct hostent * host_entity = gethostbyname(address);
+    struct hostent *host_entity = gethostbyname(address);
     if (host_entity == NULL)
     {
         printf("Erro ao realizar o DNS lookup para '%s': %d\n", address, errno);
         return NULL;
     }
-    const char * name = inet_ntoa(*(struct in_addr *)host_entity->h_addr_list[0]);
+    const char *name = inet_ntoa(*(struct in_addr *)host_entity->h_addr_list[0]);
     strncpy(buffer, name, sizeof(buffer));
     if (sock_addr != NULL)
     {
@@ -145,7 +156,7 @@ int set_receive_timeout(int socket_fd, int timeout_ms)
     return setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv_out, sizeof(tv_out));
 }
 
-void initialize_icmp_packet(struct ping_pkt * icmp_packet)
+void initialize_icmp_packet(struct ping_pkt *icmp_packet)
 {
     zero_inititialize(icmp_packet, sizeof(*icmp_packet));
     icmp_packet->hdr.type = ICMP_ECHO;
@@ -162,19 +173,19 @@ void initialize_icmp_packet(struct ping_pkt * icmp_packet)
     icmp_packet->hdr.checksum = calculate_checksum(icmp_packet);
 }
 
-int icmp_send(int socket_fd, struct sockaddr_in * address, const void * data, size_t size)
+int icmp_send(int socket_fd, struct sockaddr_in *address, const void *data, size_t size)
 {
     return sendto(socket_fd, data, size, 0, (struct sockaddr *)address, sizeof(*address));
 }
 
-int icmp_receive(int socket_fd, char * buffer, int buffer_size)
+int icmp_receive(int socket_fd, char *buffer, int buffer_size)
 {
     return recvfrom(socket_fd, buffer, buffer_size, 0, NULL, NULL);
 }
 
 // when sending icmp ping packets using raw sockets verifing the echo.id is required
 // otherwise you maybe looking at unrelated ping replys
-bool verificar_icmp(const struct ping_pkt * sent, const struct ping_pkt * received, int expected_id)
+bool verificar_icmp(const struct ping_pkt *sent, const struct ping_pkt *received, int expected_id)
 {
     if (received->hdr.un.echo.id != expected_id)
     {
@@ -189,18 +200,18 @@ bool verificar_icmp(const struct ping_pkt * sent, const struct ping_pkt * receiv
     return true;
 }
 
-double get_difference_ms(const struct timespec * t1, const struct timespec * t2)
+double get_difference_ms(const struct timespec *t1, const struct timespec *t2)
 {
     double ns = (t2->tv_nsec - t1->tv_nsec) / 1000000.0;
     double ms = (t2->tv_sec - t1->tv_sec) * 1000.0;
     return ms + ns;
 }
 
-int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
+int icmp_ping(const char *address, int timeout_ms, double *duration_ms, char *raw_data)
 {
     struct sockaddr_in sock_addr;
     zero_inititialize(&sock_addr, sizeof(sock_addr));
-    const char * name = dns_lookup_and_store_address(address, &sock_addr);
+    const char *name = dns_lookup_and_store_address(address, &sock_addr);
     if (name == NULL)
     {
         return -1;
@@ -212,9 +223,9 @@ int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
         return -1;
     }
 
-    if (set_ttl(socket_fd, 64) != 0)
+    if (set_ttl(socket_fd, 32) != 0)
     {
-        printf("Não foi possível definir o TTL de %d.\n", 64);
+        printf("Não foi possível definir o TTL de %d.\n", 32);
         close(socket_fd);
         return -1;
     }
@@ -246,6 +257,7 @@ int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
 
         if (data_received > 0)
         {
+            memcpy(raw_data, (char*) &buffer, 1024);
             printf("Resposta: %s\n", to_hex_string(&buffer, data_received));
         }
         clock_gettime(CLOCK_MONOTONIC, &stop_timestamp);
@@ -256,7 +268,7 @@ int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
         }
         if (data_received == raw_icmp_response_length)
         {
-            const struct ping_pkt * data = (const struct ping_pkt *)&buffer[ip_header_length];
+            const struct ping_pkt *data = (const struct ping_pkt *)&buffer[ip_header_length];
             if (verificar_icmp(&packet, data, my_icmp_id))
             {
                 close(socket_fd);
@@ -274,43 +286,74 @@ int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
     return -2;
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        printf("usage: %s <host>\n", argv[0]);
+        printf("usage: %s <host> [<count>]\n", argv[0]);
         return -1;
     }
 
-    const char * host = argv[1];
-    const char * address = dns_lookup_and_store_address(host, NULL);
+    // DNS Lookup pra pegar um domínio e converter para IP
+    const char *host = argv[1];
+    const char *address = dns_lookup_and_store_address(host, NULL);
 
+    // DNS Reverso pra pegar o nome "bruto" do servidor
     char name[1024];
     zero_inititialize(&name[0], sizeof(name));
-    if (!reverse_dns_lookup(address, name, sizeof(name))) {
+    if (!reverse_dns_lookup(address, name, sizeof(name)))
+    {
         // return -1;
     }
+
     printf("Disparando PING para %s. (%s)\n", address, name);
 
     int status_code = 0;
     const int timeout_ms = 1000;
-    for (int i = 0; i < 10; ++i)
+    int sucesso = 0, falha = 0;
+    int pings = 10;
+    float menorIntervalo = 1000, maiorIntervalo = 0, totalIntervalo = 0;
+    if (argc > 2)
     {
+        pings = atoi(argv[2]);
+    }
+
+    char* raw_data;
+    raw_data = malloc(sizeof(char) * 1024);
+
+    for (int i = 0; i < pings; ++i)
+    {
+        zero_inititialize(raw_data, 1024);
         double duration = 0.0;
-        int result = icmp_ping(host, timeout_ms, &duration);
+        int result = icmp_ping(host, timeout_ms, &duration, raw_data);
+
+
+        menorIntervalo = min(duration, menorIntervalo);
         if (result == -2)
         {
             falha++;
             printf("Esgotado tempo limite da requisição. Sem resposta após %dms.\n", timeout_ms);
             status_code = -2;
             continue;
-        }
-        if (result > 0)
+        } else if (result > 0)
         {
+            menorIntervalo = min(menorIntervalo, duration);
+            maiorIntervalo = max(maiorIntervalo, duration);
+            totalIntervalo += duration;
             sucesso++;
-            printf("Resposta de %s: tempo decorrido: %.2fms.\n", address, duration);
+            char ttl = raw_data[8];
+
+            printf("Resposta de %s: tempo decorrido: %.2fms (TTL: %d).\n", address, duration, (int) ttl);
+            sleep(1);
+        } else {
+            falha++;
             sleep(1);
         }
     }
+    printf("Total: %d \tSucesso: %d (%.2f%%)\tFalhas: %d (%.2f%%)\n", pings, sucesso, ((float) sucesso / (float) pings) * 100.0, falha, ((float) falha / (float) pings) * 100.0);
+    if (sucesso > 0) {
+        printf("RTT Médio: %.2fms\tMínimo: %.2fms\t Máximo: %.2fms\n", totalIntervalo / (float) sucesso, menorIntervalo, maiorIntervalo);
+    }
+
     return status_code;
 }
