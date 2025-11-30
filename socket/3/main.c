@@ -16,6 +16,15 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <errno.h>
+
+// you can choose to send more or less dummy payload data
+#define ICMP_PAYLOAD_LENGTH (26 /*- sizeof(struct icmphdr)*/)
+struct ping_pkt
+{
+    struct icmphdr hdr;
+    char payload[ICMP_PAYLOAD_LENGTH];
+};
 
 // the reason for this method is that bzero() is not standard C11 and I really
 // do not like the fact that messing up the order of arguments to 'memset' to zero out memory
@@ -29,19 +38,20 @@ void zero_inititialize(void * data, int size)
 // unprintable ascii characters are coverted to dots
 const char * to_hex_string(const void * object, int size)
 {
+
     const char * data = (const char *)object;
     static char buffer[1024];
     char * write_pointer = &buffer[0];
-    for (int i = 0; i < size; ++i)
-    {
-        int bytes_written = sprintf(write_pointer, "%02X ", (uint8_t)data[i]);
-        write_pointer += bytes_written;
-    }
+    // for (int i = 0; i < size; ++i)
+    // {
+    //     int bytes_written = sprintf(write_pointer, "%02X ", (uint8_t)data[i]);
+    //     write_pointer += bytes_written;
+    // }
 
-    *write_pointer = ';';
-    ++write_pointer;
+    // *write_pointer = ';';
+    // ++write_pointer;
 
-    for (int i = 0; i < size; ++i)
+    for (int i = 28; i < size; ++i)
     {
         char c = data[i];
         if (c < 32)
@@ -77,14 +87,6 @@ bool reverse_dns_lookup(const char * ipaddress, char * name_out, int size)
     return true;
 }
 
-// you can choose to send more or less dummy payload data
-#define ICMP_PAYLOAD_LENGTH (64 - sizeof(struct icmphdr))
-struct ping_pkt
-{
-    struct icmphdr hdr;
-    char payload[ICMP_PAYLOAD_LENGTH];
-};
-
 unsigned short calculate_checksum(const struct ping_pkt * packet)
 {
     const unsigned short * view = (const unsigned short *)packet;
@@ -113,7 +115,7 @@ const char * dns_lookup_and_store_address(const char * address, struct sockaddr_
     struct hostent * host_entity = gethostbyname(address);
     if (host_entity == NULL)
     {
-        printf("gethostbyname for '%s' failed.\n", address);
+        printf("Erro ao realizar o DNS lookup para '%s': %d\n", address, errno);
         return NULL;
     }
     const char * name = inet_ntoa(*(struct in_addr *)host_entity->h_addr_list[0]);
@@ -155,7 +157,7 @@ void initialize_icmp_packet(struct ping_pkt * icmp_packet)
     // its important to make sure to calculate the checksum _after_ filling the payload.
     for (size_t i = 0; i < ICMP_PAYLOAD_LENGTH; ++i)
     {
-        icmp_packet->payload[i] = (char)('0' + i);
+        icmp_packet->payload[i] = (char)('a' + i);
     }
     icmp_packet->hdr.checksum = calculate_checksum(icmp_packet);
 }
@@ -172,26 +174,16 @@ int icmp_receive(int socket_fd, char * buffer, int buffer_size)
 
 // when sending icmp ping packets using raw sockets verifing the echo.id is required
 // otherwise you maybe looking at unrelated ping replys
-bool verify_reply(const struct ping_pkt * sent, const struct ping_pkt * received, int expected_id)
+bool verificar_icmp(const struct ping_pkt * sent, const struct ping_pkt * received, int expected_id)
 {
-    if (received->hdr.type != ICMP_ECHOREPLY)
-    {
-        printf("1\n");
-        return false;
-    }
-    if (received->hdr.code != 0)
-    {
-        printf("2\n");
-        return false;
-    }
     if (received->hdr.un.echo.id != expected_id)
     {
-        printf("3\n");
+        printf("A reposta capturada não corresponde a resposta esperada. Id esperado %d, recebido. %d \n", expected_id, received->hdr.un.echo.id);
         return false;
     }
     if (memcmp(&sent->payload[0], &received->payload[0], ICMP_PAYLOAD_LENGTH) != 0)
     {
-        printf("4\n");
+        printf("A mensagem de retorno não é um echo da mensagem enviada.\n");
         return false;
     }
     return true;
@@ -216,19 +208,19 @@ int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
     int socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (socket_fd < 0)
     {
-        printf("descriptor for icmp_socket to '%s' could not be created. (requires root)\n", address);
+        printf("Não foi possível criar o socket '%s': %d\n", address, errno);
         return -1;
     }
 
     if (set_ttl(socket_fd, 64) != 0)
     {
-        printf("ttl for icmp_socket to '%d' could not be set.\n", 64);
+        printf("Não foi possível definir o TTL de %d.\n", 64);
         close(socket_fd);
         return -1;
     }
     if (set_receive_timeout(socket_fd, timeout_ms) != 0)
     {
-        printf("timeout for icmp_socket to '%d' could not be set.\n", timeout_ms);
+        printf("Não foi possível definir o timeout de '%d'.\n", timeout_ms);
         close(socket_fd);
         return -1;
     }
@@ -239,9 +231,6 @@ int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
 
     struct ping_pkt packet;
     initialize_icmp_packet(&packet);
-
-    printf("  send %ld bytes with id %d.\n", sizeof(packet), packet.hdr.un.echo.id);
-    printf("  %s\n", to_hex_string(&packet, sizeof(packet)));
 
     struct timespec start_timestamp;
     struct timespec stop_timestamp;
@@ -257,7 +246,7 @@ int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
 
         if (data_received > 0)
         {
-            printf("R: %s\n", to_hex_string(&buffer, data_received));
+            printf("Resposta: %s\n", to_hex_string(&buffer, data_received));
         }
         clock_gettime(CLOCK_MONOTONIC, &stop_timestamp);
         *duration_ms = get_difference_ms(&start_timestamp, &stop_timestamp);
@@ -268,17 +257,17 @@ int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
         if (data_received == raw_icmp_response_length)
         {
             const struct ping_pkt * data = (const struct ping_pkt *)&buffer[ip_header_length];
-            if (verify_reply(&packet, data, my_icmp_id))
+            if (verificar_icmp(&packet, data, my_icmp_id))
             {
                 close(socket_fd);
                 return 1;
             }
-            printf("  warning unrelated message received of %d bytes with id %d.\n", data_received, data->hdr.un.echo.id);
+            printf("Cabeçalho do ICMP retornado não representa um echo válido (%d bytes).\n", data_received);
             continue;
         }
         if (data_received > 0)
         {
-            printf("  warning unrelated message received of %d bytes.\n", data_received);
+            printf("Retorno não representa um echo válido (%d bytes).\n", data_received);
         }
     }
     close(socket_fd);
@@ -299,25 +288,27 @@ int main(int argc, char * argv[])
     char name[1024];
     zero_inititialize(&name[0], sizeof(name));
     if (!reverse_dns_lookup(address, name, sizeof(name))) {
-        return -1;
+        // return -1;
     }
     printf("Disparando PING para %s. (%s)\n", address, name);
 
     int status_code = 0;
     const int timeout_ms = 1000;
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 10; ++i)
     {
         double duration = 0.0;
         int result = icmp_ping(host, timeout_ms, &duration);
         if (result == -2)
         {
-            printf("ping from %s timed out, no response after %dms.\n", address, timeout_ms);
+            falha++;
+            printf("Esgotado tempo limite da requisição. Sem resposta após %dms.\n", timeout_ms);
             status_code = -2;
             continue;
         }
         if (result > 0)
         {
-            printf("ping from %s: time=%.2fms.\n", address, duration);
+            sucesso++;
+            printf("Resposta de %s: tempo decorrido: %.2fms.\n", address, duration);
             sleep(1);
         }
     }
