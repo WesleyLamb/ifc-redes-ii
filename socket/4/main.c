@@ -250,48 +250,40 @@ int icmp_ping(char *address, int timeout_ms, double *duration_ms, char *raw_data
 
     icmp_send(socket_fd, &sock_addr, &packet, sizeof(packet));
 
-    bool done = false;
+    bool done = false, received = false;
+    int data_received = 0;
     while (!done)
     {
         char buffer[1024];
-        int data_received = icmp_receive(socket_fd, &buffer[0], raw_icmp_response_length);
+        data_received = icmp_receive(socket_fd, &buffer[0], raw_icmp_response_length);
 
-        if (data_received > 0)
-        {
-            memcpy(raw_data, (char*) &buffer, 1024);
-            // printf("Resposta: %s\n", to_hex_string(&buffer, data_received));
-        }
-        clock_gettime(CLOCK_MONOTONIC, &stop_timestamp);
-        *duration_ms = get_difference_ms(&start_timestamp, &stop_timestamp);
         if (*duration_ms > timeout_ms)
         {
             done = true;
         }
-        if (data_received == raw_icmp_response_length)
-        {
-            const struct ping_pkt *data = (const struct ping_pkt *)&buffer[ip_header_length];
-            // if (verificar_icmp(&packet, data, my_icmp_id))
-            // {
-            //     printf("Cabeçalho do ICMP retornado não representa um echo válido (%d bytes).\n", data_received);
-            //     close(socket_fd);
-            //     return 1;
-            // }
-            continue;
-        }
+
         if (data_received > 0)
         {
-            printf("Retorno não representa um echo válido (%d bytes).\n", data_received);
+            memcpy(raw_data, (char*) &buffer, 1024);
+            received = true;
+            // printf("Resposta: %s\n", to_hex_string(&buffer, data_received));
         }
+        clock_gettime(CLOCK_MONOTONIC, &stop_timestamp);
+        *duration_ms = get_difference_ms(&start_timestamp, &stop_timestamp);
     }
     close(socket_fd);
-    return -2;
+    if (!received) {
+        return -1;
+    }
+    return 0;
 }
 
-char* get_ip(char* raw_data, size_t raw_data_len) {
-    uint32_t *ip = (int*)(raw_data + 12);
+void intToIp(char* dest, int* src)
+{
     struct in_addr ip_addr;
-    ip_addr.s_addr = *ip;
-    return inet_ntoa(ip_addr);
+    ip_addr.s_addr = *src;
+    int iplen = strlen(inet_ntoa(ip_addr));
+    memcpy(dest, inet_ntoa(ip_addr), iplen);
 }
 
 int main(int argc, char *argv[])
@@ -319,36 +311,49 @@ int main(int argc, char *argv[])
 
     int status_code = 0;
     const int timeout_ms = 500;
-    char* raw_data;
-    raw_data = malloc(sizeof(char) * 1024);
+    char raw_data[1024];
     int current_ttl = 1;
 
     zero_inititialize(raw_data, 1024);
-    int cont = 0;
+    int responseType = -1;
+    int responseCode = -1;
+    char responseAddress[128];
+    char responseAddressName[128];
+    int ip = 0;
 
-    while (strcmp(get_ip(raw_data, sizeof(raw_data)), address) != 0) {
+    while (responseType != ICMP_ECHOREPLY || strcmp(responseAddress, host) == 0) {
         for (int i = 0; i < 3; i++) {
             zero_inititialize(raw_data, 1024);
             double duration = 0.0;
-            int result = icmp_ping(host, timeout_ms, &duration, raw_data, current_ttl);
-            char responseServer[1024];
+            int result = icmp_ping(host, timeout_ms, &duration, (char*)raw_data, current_ttl);
 
-            zero_inititialize((char*)&responseServer, 1024);
-            if (!reverse_dns_lookup(get_ip(raw_data, sizeof(raw_data)), (char*)&responseServer, 1024)) {
-                memcpy((char*)&responseServer, get_ip(raw_data, sizeof(raw_data)), 1024);
-            }
+            if (result == 0) {
+                responseType = raw_data[20];
+                responseCode = raw_data[21];
 
-            printf("Resposta de %s (%s): tempo decorrido: %.2fms (TTL: %d).\n", get_ip(raw_data, sizeof(raw_data)), responseServer, duration - 500, current_ttl);
-            if (result == -2)
-            {
-                // printf("Esgotado tempo limite da requisição. Sem resposta após %dms.\n", timeout_ms);
-                status_code = -2;
-                continue;
-            } else if (result > 0) {
-                sleep(1);
+                zero_inititialize((char*)&responseAddress, 128);
+                zero_inititialize((char*)&responseAddressName, 128);
+                memcpy(&ip, &raw_data[12], 4);
+                intToIp(&responseAddress[0], &ip);
+
+                // memcpy((char*)&responseAddress, , 4);
+
+                reverse_dns_lookup(responseAddress, (char*)&responseAddressName, 128);
+
+                if ((responseType == ICMP_ECHOREPLY) || (responseType == ICMP_TIME_EXCEEDED)) {
+                    reverse_dns_lookup(responseAddress, (char*)&responseAddressName, 128);
+
+                    printf("Resposta de %s (%s) - type: %d, code: %d, tempo decorrido: %.2fms (TTL: %d).\n", responseAddress, responseAddressName, responseType, responseCode, duration - 500, current_ttl);
+                } else {
+                    // Ou chegou ao destino e o mesmo não respondeu ou o destino é inalcançavel
+                    printf("Resposta de %s - type: %d, code: %d, tempo decorrido: %.2fms (TTL: %d).\n", responseAddress,
+                        responseType, responseCode, duration - 500, current_ttl);
+                }
             } else {
-                sleep(1);
+                // Destino nem respondeu
+                printf("Sem resposta de %s\n", host);
             }
+
         }
         current_ttl++;
     }
